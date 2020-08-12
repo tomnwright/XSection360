@@ -75,7 +75,8 @@ class OutImage:
         return y * res_width + x
 
     @staticmethod
-    def get_resolution():
-        settings = bpy.context.scene.render
+    def get_resolution(scene=None):
+        if scene is None:
+            scene = bpy.context.scene
 
-        return settings.resolution_x, settings.resolution_y
+        return scene.render.resolution_x, scene.render.resolution_y

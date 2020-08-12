@@ -21,6 +21,38 @@ class Process:
         return sum(Process.get_rgba_value(p) for p in pixels)
 
 
+def run_background(scene_name, save_file, cam_distance):
+    import os
+    import sys
+    import bpy
+
+    filepath = bpy.path.abspath("//")
+    sys.path.append(filepath)
+    os.chdir(filepath)
+
+    import xstools
+    from dataio import WriteRaw
+    from equirectangular import Equirectangular
+    from progress import bar
+
+    scene: bpy.types.Scene = bpy.data.scenes[scene_name]
+    camera = scene.camera
+    resolution = xstools.OutImage.get_resolution(scene)
+
+    writer = WriteRaw(save_file, resolution)
+
+    max_pixel = writer.pixels
+    for pixel in range(max_pixel):
+        pixel_coord = writer.pixel_to_coord(pixel)
+
+        long, lat = Equirectangular.pixel_coord_to_spherical(pixel_coord, resolution)
+
+        xstools.transform_camera(camera, cam_distance, long, lat)
+
+        bpy.ops.render.render()
+
+        progress = pixel / (max_pixel - 1)
+        #print(bar(10, progress))
 
 
 def main():
@@ -47,32 +79,44 @@ def main():
     # Example utility, add some text and renders or saves it (with options)
     # Possible types are: string, int, long, choice, float and complex.
     parser.add_argument(
-        "-s", "--scene", dest="text", type=str, required=True,
-        help="This text will be used to render an image",
+        "-s", "--scene", dest="scene", type=str, required=True,
+        help="",
     )
 
     parser.add_argument(
-        "-s", "--save", dest="save_path", metavar='FILE',
+        "-f", "--file", dest="save_file", metavar='FILE', required=True,
         help="Save the generated file to the specified path",
     )
     parser.add_argument(
-        "-r", "--render", dest="render_path", metavar='FILE',
-        help="Render an image to the specified path",
+        "-d", "--distance", dest="cam_distance", type=float, required=True,
+        help="Camera sphere projection distance",
     )
-
+    # parser.add_argument(
+    #     "-p", "--pixel", dest="start_pixel", type=int,
+    #     help="Camera sphere projection distance",
+    # )
     args = parser.parse_args(argv)  # In this example we won't use the args
 
     if not argv:
         parser.print_help()
         return
 
-    if not args.text:
-        print("Error: --text=\"some string\" argument not given, aborting.")
+    if not args.scene:
+        print("Error: --scene=\"some string\" argument not given, aborting.")
+        parser.print_help()
+        return
+    if not args.save_file:
+        print("Error: --file=\"some string\" argument not given, aborting.")
+        parser.print_help()
+        return
+    if not args.cam_distance:
+        print("Error: --distance=value argument not given, aborting.")
         parser.print_help()
         return
 
     # Run the example function
-    #example_function(args.text, args.save_path, args.render_path)
+    # example_function(args.text, args.save_path, args.render_path)
+    run_background(args.scene, args.save_file, args.cam_distance)
 
     print("batch job finished, exiting")
 

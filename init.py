@@ -10,7 +10,7 @@ import sys
 import os
 import bpy
 from bpy_extras.io_utils import ExportHelper
-from subprocess import Popen
+from subprocess import Popen, CREATE_NEW_CONSOLE
 
 filepath = bpy.path.abspath("//")
 sys.path.append(filepath)
@@ -165,7 +165,12 @@ class Run_XS360(bpy.types.Operator):
         blend_file = bpy.data.filepath
 
         bpy.ops.wm.save_as_mainfile(filepath=blend_file)
-        Popen(['blender', blend_file, '--background', '--python', 'background.py'], shell=True)
+
+        scene = context.scene.name
+        save_file = bpy.path.abspath(context.scene.xs360.output_file)
+        distance = context.scene.xs360.camera_distance
+
+        Popen(['blender', blend_file, '--background', '--python', 'background.py', '--', f'--scene={scene}', f'--file={save_file}', f'--distance={distance}'], creationflags = CREATE_NEW_CONSOLE)
 
         return {'FINISHED'}
 
