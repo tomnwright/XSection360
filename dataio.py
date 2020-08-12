@@ -1,5 +1,5 @@
 import os
-
+from xstools import OutImage
 
 class RawProfile:
     def __init__(self, filename: str, resolution: tuple):
@@ -16,10 +16,7 @@ class RawProfile:
         :param pixel: Pixel number; start counting bottom left, go right
         :return: Pixel coordinates: zeroed bottom left
         """
-        x = pixel % self.x
-        y = pixel // self.x
-
-        return x, y
+        return OutImage.pixel_to_coord(pixel, self.x)
 
     def coord_to_pixel(self, coord):
         """

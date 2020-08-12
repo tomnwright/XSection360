@@ -9,27 +9,45 @@ class Equirectangular:
     # linear image coordinates 0 to 1
     # spherical coordinates -180 to 180
     # (centres 0 deg to 0.5 linear)
-    @staticmethod
-    def linear_to_spherical(linear):
-        # convert linear to spherical coordinate axis
 
-        # scale to between -1 and 1: *=2, -=1
-        # scale to between -180 and 180: *- 180
-        return (linear * 360) - 180
+    class Longitude:
+        @staticmethod
+        def linear_to_spherical(linear):
+            # convert linear x to spherical longitude
 
-    @staticmethod
-    def spherical_to_linear(spherical):
-        # convert spherical to linear coordinate axis
+            # scale to between -1 and 1: *=2, -=1
+            # scale to between -180 and 180: *- 180
+            return (linear * 360) - 180
 
-        # inversion of linear_to_spherical
-        return (spherical + 180) / 360
+        @staticmethod
+        def spherical_to_linear(spherical):
+            # convert spherical longitude to linear x
+
+            # inversion of linear_to_spherical
+            return (spherical + 180) / 360
+
+    class Latitude:
+        @staticmethod
+        def linear_to_spherical(linear):
+            # convert linear y to spherical latitude
+
+            # scale to between -1 and 1: *=2, -=1
+            # scale to between -180 and 180: *- 180
+            return (linear * 180) - 90
+
+        @staticmethod
+        def spherical_to_linear(spherical):
+            # convert spherical latitude to linear y
+
+            # inversion of linear_to_spherical
+            return (spherical + 90) / 180
 
     @staticmethod
     def spherical_coord(linear_coord):
         x, y = linear_coord
 
-        long = Equirectangular.linear_to_spherical(x)
-        lat = Equirectangular.linear_to_spherical(y)
+        long = Equirectangular.Longitude.linear_to_spherical(x)
+        lat = Equirectangular.Latitude.linear_to_spherical(y)
 
         return long, lat
 
@@ -37,8 +55,8 @@ class Equirectangular:
     def linear_coord(spherical_coord):
         long, lat = spherical_coord
 
-        x = Equirectangular.spherical_to_linear(long)
-        y = Equirectangular.spherical_to_linear(lat)
+        x = Equirectangular.Longitude.spherical_to_linear(long)
+        y = Equirectangular.Longitude.spherical_to_linear(lat)
 
         return x, y
 
@@ -46,7 +64,7 @@ class Equirectangular:
     def project_sphere(coord, coord_linear=True, radius=1):
         # calculates the corresponding point on a unit sphere
 
-        # ensure spherical coord
+        # ensure spherical pixel_coord
         if coord_linear:
             coord = Equirectangular.spherical_coord(coord)
         long, lat = coord
@@ -75,17 +93,28 @@ class Equirectangular:
         return block_size * (pixel + 0.5)
 
     @staticmethod
-    def pixel_to_spherical(pixel, resolution):
-        linear = Equirectangular.pixel_to_linear(pixel, resolution)
-        return Equirectangular.linear_to_spherical(linear)
+    def pixel_coord_to_linear(coord, resolution: tuple):
+        x, y = coord
+        rX, rY = resolution
+
+        lX = Equirectangular.pixel_to_linear(x, rX)
+        lY = Equirectangular.pixel_to_linear(y, rY)
+
+        return lX, lY
 
     @staticmethod
-    def pixel_project_sphere(pixel_coord, resolution, radius):
-        x, y = pixel_coord
-        resX, resY = resolution
+    def pixel_coord_to_spherical(pixel_coord, resolution):
+        x, y = Equirectangular.pixel_coord_to_linear(pixel_coord, resolution)
 
-        x = Equirectangular.pixel_to_linear(x, resX)
-        y = Equirectangular.pixel_to_linear(y, resY)
+        long = Equirectangular.Longitude.linear_to_spherical(x)
+        lat = Equirectangular.Latitude.linear_to_spherical(y)
+
+        return long, lat
+
+    @staticmethod
+    def pixel_project_sphere(pixel_coord, resolution: tuple, radius):
+        # linear coordinates
+        x, y = Equirectangular.pixel_coord_to_linear(pixel_coord, resolution)
 
         return Equirectangular.project_sphere((x, y), radius=radius)
 
@@ -108,12 +137,8 @@ class Vector:
 
 
 if __name__ == '__main__':
+    pass
 
-    # test axis conversion
-    for i in np.arange(0, 1, 0.05):
-        output = Equirectangular.linear_to_spherical(i)
-        print(i, output)
-
-#idea: addon for setup, background script for running
-#run command line from within addon?
-#preview camera angles
+# idea: addon for setup, background script for running
+# run command line from within addon?
+# preview camera angles

@@ -1,71 +1,80 @@
-from equirectangular import Equirectangular
-import bpy
-from math import radians
+# arguments to take:
+#   -scene
+#   -export file
+#   -camera distance
+#   -pixel start
+# arguments infered through scene:
+#   -resolution
+
 
 class Process:
-    @staticmethod
-    def transform_camera(camera: bpy.types.Object, distance, long, lat):
-        """
-        Set camera transformation
-        Project position onto sphere of radius [distance] and align rotation
-        :param camera: Camera to transform
-        :param distance: Distance from centre point
-        :param long: Longitudinal position
-        :param lat: Latitudinal position
-        """
-        camera.location = Equirectangular.project_sphere((long, lat), False, distance)
-
-        # rotate facing inwards, then apply lat & long
-        rx, rz = 90 - lat, 180 + long
-        camera.rotation_euler = (radians(rx), 0, radians(rz))
-
-    @staticmethod
-    def create_pixel_sphere(radius, resolution):
-        """
-        Generate mesh with vertices for each projected pixel.
-        Demonstrates position of each pixel.
-        :param radius: Sphere radius
-        :param resolution: Output image resolution
-        """
-        xR, yR = resolution
-
-        # generate one vertex for each pixel
-        verts = []
-        for x in range(xR):
-            for y in range(yR):
-                v = Equirectangular.pixel_project_sphere((x, y), resolution, radius)
-
-                verts.append(v)
-
-        name = f"Pixel Sphere ({xR}, {yR})"
-
-        mesh = bpy.data.meshes.new(name)  # create mesh
-        mesh.from_pydata(verts, [], [])
-        obj = bpy.data.objects.new(name, mesh)  # create object; apply mesh
-
-        bpy.context.scene.collection.objects.link(obj)  # place object in master collection
-        bpy.context.view_layer.objects.active = obj  # make active object (?)
-        obj.select_set(True)
 
     # @staticmethod
     # def run_360(self, ):
 
     @staticmethod
-    def get_rgba_value(rgba:tuple):
+    def get_rgba_value(rgba: tuple):
         return sum(rgba[:3]) / 3
 
     @staticmethod
     def sum_values(pixels):
         return sum(Process.get_rgba_value(p) for p in pixels)
 
-def
+
+
 
 def main():
-    import sys
-    import argparse
+    import sys  # to get command line args
+    import argparse  # to parse options for us and print a nice help message
 
+    # get the args passed to blender after "--", all of which are ignored by
+    # blender so scripts may receive their own arguments
+    argv = sys.argv
 
+    if "--" not in argv:
+        argv = []  # as if no args are passed
+    else:
+        argv = argv[argv.index("--") + 1:]  # get all args after "--"
 
+    # When --help or no args are given, print this help
+    usage_text = (
+            "Run blender in background mode with this script:"
+            "  blender [blend file] --background --python " + __file__ + " -- [options]"
+    )
+
+    parser = argparse.ArgumentParser(description=usage_text)
+
+    # Example utility, add some text and renders or saves it (with options)
+    # Possible types are: string, int, long, choice, float and complex.
+    parser.add_argument(
+        "-s", "--scene", dest="text", type=str, required=True,
+        help="This text will be used to render an image",
+    )
+
+    parser.add_argument(
+        "-s", "--save", dest="save_path", metavar='FILE',
+        help="Save the generated file to the specified path",
+    )
+    parser.add_argument(
+        "-r", "--render", dest="render_path", metavar='FILE',
+        help="Render an image to the specified path",
+    )
+
+    args = parser.parse_args(argv)  # In this example we won't use the args
+
+    if not argv:
+        parser.print_help()
+        return
+
+    if not args.text:
+        print("Error: --text=\"some string\" argument not given, aborting.")
+        parser.print_help()
+        return
+
+    # Run the example function
+    #example_function(args.text, args.save_path, args.render_path)
+
+    print("batch job finished, exiting")
 
 
 if __name__ == '__main__':
