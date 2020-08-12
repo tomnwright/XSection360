@@ -5,7 +5,9 @@
 #   -pixel start
 # arguments infered through scene:
 #   -resolution
-
+import os
+import sys
+import time
 
 class Process:
 
@@ -21,9 +23,32 @@ class Process:
         return sum(Process.get_rgba_value(p) for p in pixels)
 
 
+class Suppressor:
+    def __init__(self, logfile='blender_render.log'):
+        self.logfile = logfile
+        self.old = None
+
+    def enter(self):
+        # enable output redirection
+        open(self.logfile, 'a').close()
+        self.old = os.dup(1)
+        sys.stdout.flush()
+        os.close(1)
+        os.open(self.logfile, os.O_WRONLY)
+
+    def exit(self):
+        # disable output redirection
+        os.close(1)
+        os.dup(self.old)
+        os.close(self.old)
+
+
+def start_message(scene_name, save_file, resolution):
+    x, y = resolution
+    return f'\n~~~ Running XSection360 ~~~\n( Scene: {scene_name}, Output: {save_file}, Resolution: ({x}, {y}) )\n'
+
+
 def run_background(scene_name, save_file, cam_distance):
-    import os
-    import sys
     import bpy
 
     filepath = bpy.path.abspath("//")
@@ -40,6 +65,9 @@ def run_background(scene_name, save_file, cam_distance):
     resolution = xstools.OutImage.get_resolution(scene)
 
     writer = WriteRaw(save_file, resolution)
+    suppressor = Suppressor()
+
+    print(start_message(scene_name, writer.filename, resolution))
 
     max_pixel = writer.pixels
     for pixel in range(max_pixel):
@@ -49,10 +77,14 @@ def run_background(scene_name, save_file, cam_distance):
 
         xstools.transform_camera(camera, cam_distance, long, lat)
 
+        suppressor.enter()
         bpy.ops.render.render()
+        suppressor.exit()
 
         progress = pixel / (max_pixel - 1)
-        #print(bar(10, progress))
+        print('Running... ' + bar(30, progress), end='\r')
+
+    print('Running... ' + bar(30, 1))
 
 
 def main():
@@ -118,8 +150,8 @@ def main():
     # example_function(args.text, args.save_path, args.render_path)
     run_background(args.scene, args.save_file, args.cam_distance)
 
-    print("batch job finished, exiting")
-
+    print("Done, exiting...")
+    time.sleep(1)
 
 if __name__ == '__main__':
     main()
