@@ -1,17 +1,10 @@
-'''
-This script is opened in the blender file and registered (by running).
-The UI then allows a render to be executed, which ports the data to a separate Python process using an intermediary file.
-'''
-# import sys
-# import os
-# import threading
-
 import sys
 import os
 import bpy
 from bpy_extras.io_utils import ExportHelper
 from subprocess import Popen, CREATE_NEW_CONSOLE
 
+# set local path & allow local imports
 filepath = bpy.path.abspath("//")
 sys.path.append(filepath)
 os.chdir(filepath)
@@ -22,11 +15,11 @@ import xstools
 
 bl_info = {
     "name": "XSection360",
-    "description": "Calls Renderia to render scene (requires active camera).",
+    "description": "Create cross-sectional area image profile for calculating object drag from various angles.",
     "author": "Tom Wright",
     "version": (1, 0),
-    "blender": (2, 81, 0),
-    "location": "Properties > Render > Renderia",
+    "blender": (2, 83, 0),
+    "location": "Properties > Render > XSection360",
     "category": "Render"
 }
 
@@ -36,7 +29,7 @@ class XS360_Panel_Settings:
     bl_region_type = "WINDOW"
     bl_category = "Tools"
     bl_context = "render"
-    bl_options = {"DEFAULT_CLOSED"}
+    bl_options = {"DEFAULT_OPEN"}
 
 
 class XS360_Panel(XS360_Panel_Settings, bpy.types.Panel):
@@ -51,17 +44,24 @@ class XS360_Panel(XS360_Panel_Settings, bpy.types.Panel):
         xs360 = scene.xs360
 
         # save file input
-        layout.label(text="Output File:")
-
-        col = layout.column()
+        col = layout.column(align=True)
+        col.label(text="Output File:")
         row = col.row(align=True)
         row.operator("wm.xs360_select_file", icon="FILE_FOLDER", text="")
         row.prop(xs360, "output_file", text="")
+
+        col = layout.column(align=True)
+        col.label(text="Profile Resolution")
+        row = col.row(align=True)
+        row.prop(xs360, "output_x", text="X")
+        row.prop(xs360, "output_y", text="Y")
 
         # run button
         row = layout.row()
         row.scale_y = 2.0
         row.operator("wm.run_xs360", text="Run")
+
+        layout.prop(xs360, "new_console")
 
 
 class XS360_Setup_Sub(XS360_Panel_Settings, bpy.types.Panel):
@@ -113,7 +113,7 @@ class XS360_Camera_Sub(XS360_Panel_Settings, bpy.types.Panel):
 
         pixel = self.pixel_debug
 
-        rX, rY = xstools.OutImage.get_resolution()
+        rX, rY = XS360_Properties.get_resolution(context.scene)
         total = rX * rY
 
         # validate pixel range
@@ -140,7 +140,7 @@ class XS360_File_Select(bpy.types.Operator, ExportHelper):
     filename_ext = ".txt"
 
     filter_glob: bpy.props.StringProperty(
-        default="",
+        default="*.txt",
         options={'HIDDEN'},
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
@@ -163,14 +163,22 @@ class Run_XS360(bpy.types.Operator):
 
     def execute(self, context):
         blend_file = bpy.data.filepath
+        xs360 = context.scene.xs360
 
         bpy.ops.wm.save_as_mainfile(filepath=blend_file)
 
         scene = context.scene.name
-        save_file = bpy.path.abspath(context.scene.xs360.output_file)
-        distance = context.scene.xs360.camera_distance
+        save_file = bpy.path.abspath(xs360.output_file)
+        distance = xs360.camera_distance
 
-        Popen(['blender', blend_file, '--background', '--python', 'background.py', '--', f'--scene={scene}', f'--file={save_file}', f'--distance={distance}'], creationflags = CREATE_NEW_CONSOLE)
+        flags = 0
+        if xs360.new_console:
+            flags = CREATE_NEW_CONSOLE
+
+        x,y = XS360_Properties.get_resolution(context.scene)
+
+        Popen(['blender', blend_file, '--background', '--python', 'background.py', '--', f'--scene={scene}',
+               f'--file={save_file}', f'-x={x}', f'-y={y}', f'--distance={distance}'], creationflags=flags)
 
         return {'FINISHED'}
 
@@ -231,6 +239,31 @@ class XS360_Properties(bpy.types.PropertyGroup):
         default="//test.txt",
         description="File that output is written to."
     )
+
+    new_console: bpy.props.BoolProperty(
+        name="Run In New Console",
+        default=True
+    )
+
+    output_x: bpy.props.IntProperty(
+        name="X Resolution",
+        description="X Resolution of Output Profile (not render)",
+        default=30,
+        min=0
+    )
+
+    output_y: bpy.props.IntProperty(
+        name="Y Resolution",
+        description="Y Resolution of Output Profile (not render)",
+        default=30,
+        min=0
+    )
+
+    @staticmethod
+    def get_resolution(scene):
+        x = scene.xs360.output_x
+        y = scene.xs360.output_y
+        return x, y
 
 
 classes = (

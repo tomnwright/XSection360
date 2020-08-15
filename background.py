@@ -1,35 +1,84 @@
-# arguments to take:
-#   -scene
-#   -export file
-#   -camera distance
-#   -pixel start
-# arguments infered through scene:
-#   -resolution
+"""
+Blender background script in which XSection360 processing is performed
+Outputs a temporary txt file containing raw drag profile data
+(No. white pixels rendered for each profile pixel)
+
+Called by "Run" in XS360 Blender Addon
+Example usage:
+
+blender example.blend --background --python background.py -- -s="Scene" -f=temp.txt -x=255 -y=255 -d=15
+"""
+
 import os
 import sys
-import time
+import bpy
+from time import time, sleep
 
-class Process:
 
-    # @staticmethod
-    # def run_360(self, ):
-
+class Processing:
     @staticmethod
-    def get_rgba_value(rgba: tuple):
+    def get_rgba_lightness(rgba: tuple):
+        """
+        Calculate pixel lightness from RGB(A)
+        :param rgba: Pixel data tuple: either RGB or RGBA
+        :return: Lightness value (average of r,g,b)
+        """
         return sum(rgba[:3]) / 3
 
     @staticmethod
-    def sum_values(pixels):
-        return sum(Process.get_rgba_value(p) for p in pixels)
+    def get_pixels(image: bpy.types.Image):
+        """
+        Convert bpy.types.Image.pixels to list of pixel tuples
+        :param image: Target image
+        :return: Linear list of pixel tuples (RGBA)
+        """
+        return list(zip(*[iter(image.pixels)] * 4))
+
+    @staticmethod
+    def sum_lightness(pixels):
+        """
+        Calculate the sum lightness of given pixels
+        :param pixels: List of RGB(A) pixel tuples
+        :return: Float value: total (sum) lightness
+        """
+        result = 0
+
+        for pixel in pixels:
+            result += Processing.get_rgba_lightness(pixel)
+
+        return result
+
+    @staticmethod
+    def process_image(file_path):
+        """
+        Apply above processing to file at given filepath
+        :param file_path: Target image filepath
+        :return: Sum lightness of target image pixels
+        """
+        img = bpy.data.images.load(file_path)  # load target image into blender
+        pixels = Processing.get_pixels(img)  # get list of pixel tuples (rgba)
+
+        return Processing.sum_lightness(pixels)  # return sum of each pixel lightness
 
 
 class Suppressor:
+    """
+    Suppress console output by redirecting it to logfile
+    Specifically, prevent console output after each render operation
+    Found at https://blender.stackexchange.com/a/44563
+    """
+
     def __init__(self, logfile='blender_render.log'):
+        """
+        :param logfile: File to which console output is redirected
+        """
         self.logfile = logfile
         self.old = None
 
     def enter(self):
-        # enable output redirection
+        """
+        Enable output redirection.
+        """
         open(self.logfile, 'a').close()
         self.old = os.dup(1)
         sys.stdout.flush()
@@ -37,20 +86,38 @@ class Suppressor:
         os.open(self.logfile, os.O_WRONLY)
 
     def exit(self):
-        # disable output redirection
+        """
+        Disable output redirection.
+        """
         os.close(1)
         os.dup(self.old)
         os.close(self.old)
 
 
-def start_message(scene_name, save_file, resolution):
-    x, y = resolution
-    return f'\n~~~ Running XSection360 ~~~\n( Scene: {scene_name}, Output: {save_file}, Resolution: ({x}, {y}) )\n'
+def start_message(scene_name, save_file, resolution, render_res):
+    """
+    Generates console message displayed upon running process.
+    :param scene_name: Name of target scene
+    :param save_file: Output (drag profile) image file
+    :param resolution: Output (drag profile) temp file (txt)
+    :param render_res: Render resolution for each drag profile pixel
+    :return: Full message (str)
+    """
+    message = f'\n~~~ Running XSection360 ~~~\n( Scene: {scene_name}, Output: {save_file}\n'
+    message += f'Resolution: {resolution}, Render Res: {render_res}\n'
+    return message
 
 
-def run_background(scene_name, save_file, cam_distance):
-    import bpy
+def run_background(scene_name, save_file, resolution: tuple, cam_distance):
+    """
+    Run XS360 process.
+    :param scene_name: Name of target scene
+    :param save_file: Output file (txt) - raw drag profile
+    :param resolution: Final drag profile resolution
+    :param cam_distance: Distance of camera from center (sphere radius)
+    """
 
+    # set local path & allow local imports
     filepath = bpy.path.abspath("//")
     sys.path.append(filepath)
     os.chdir(filepath)
@@ -58,33 +125,45 @@ def run_background(scene_name, save_file, cam_distance):
     import xstools
     from dataio import WriteRaw
     from equirectangular import Equirectangular
-    from progress import bar
+    from progress import progress_bar
 
+    # retrieve scene data
     scene: bpy.types.Scene = bpy.data.scenes[scene_name]
     camera = scene.camera
-    resolution = xstools.OutImage.get_resolution(scene)
+    render_res = xstools.OutImage.get_resolution(scene)
 
     writer = WriteRaw(save_file, resolution)
     suppressor = Suppressor()
 
-    print(start_message(scene_name, writer.filename, resolution))
+    # set temp file to render to
+    temp_file = f"//temp.{time()}.png"
+    scene.render.filepath = temp_file
 
+    # print start message
+    print(start_message(scene_name, writer.filename, resolution, render_res))
     max_pixel = writer.pixels
-    for pixel in range(max_pixel):
+
+    # begin pixel render process (set up progress bar)
+    for pixel in progress_bar(range(max_pixel), desc="Rendering"):
+
+        # get xy pixel coordinates
         pixel_coord = writer.pixel_to_coord(pixel)
 
+        # get projected longitude & latitude
         long, lat = Equirectangular.pixel_coord_to_spherical(pixel_coord, resolution)
-
+        # apply to camera
         xstools.transform_camera(camera, cam_distance, long, lat)
 
+        # render (suppress render console output)
         suppressor.enter()
-        bpy.ops.render.render()
+        bpy.ops.render.render(write_still=True)
         suppressor.exit()
 
-        progress = pixel / (max_pixel - 1)
-        print('Running... ' + bar(30, progress), end='\r')
+        # process render result, write to file
+        total_lightness = Processing.process_image(temp_file)
+        writer.write(total_lightness)
 
-    print('Running... ' + bar(30, 1))
+    # end
 
 
 def main():
@@ -114,44 +193,35 @@ def main():
         "-s", "--scene", dest="scene", type=str, required=True,
         help="",
     )
-
     parser.add_argument(
         "-f", "--file", dest="save_file", metavar='FILE', required=True,
         help="Save the generated file to the specified path",
     )
     parser.add_argument(
+        "-x", "--xres", dest="x_resolution", type=int, required=True,
+        help="Horizontal (X) resolution of output image (different to render resolution)",
+    )
+    parser.add_argument(
+        "-y", "--yres", dest="y_resolution", type=int, required=True,
+        help="Vertical (Y) resolution of output image (different to render resolution)",
+    )
+    parser.add_argument(
         "-d", "--distance", dest="cam_distance", type=float, required=True,
         help="Camera sphere projection distance",
     )
-    # parser.add_argument(
-    #     "-p", "--pixel", dest="start_pixel", type=int,
-    #     help="Camera sphere projection distance",
-    # )
+
     args = parser.parse_args(argv)  # In this example we won't use the args
 
     if not argv:
         parser.print_help()
         return
 
-    if not args.scene:
-        print("Error: --scene=\"some string\" argument not given, aborting.")
-        parser.print_help()
-        return
-    if not args.save_file:
-        print("Error: --file=\"some string\" argument not given, aborting.")
-        parser.print_help()
-        return
-    if not args.cam_distance:
-        print("Error: --distance=value argument not given, aborting.")
-        parser.print_help()
-        return
-
-    # Run the example function
-    # example_function(args.text, args.save_path, args.render_path)
-    run_background(args.scene, args.save_file, args.cam_distance)
+    res = (args.x_resolution, args.y_resolution)
+    run_background(args.scene, args.save_file, res, args.cam_distance)
 
     print("Done, exiting...")
-    time.sleep(1)
+    sleep(1)
+
 
 if __name__ == '__main__':
     main()

@@ -68,4 +68,20 @@ class WriteRaw(RawProfile):
 
     def write(self, value):
         with open(self.filename, 'a') as write_file:
-            write_file.write(value)
+            write_file.write(str(value) + "\n")
+
+
+class ReadRaw(RawProfile):
+    def __init__(self, filename: str, resolution: tuple):
+        super().__init__(filename, resolution)
+
+    def read_data(self):
+        result = []
+
+        print(self.filename)
+        with open(self.filename, "r") as read_file:
+
+            for line in read_file:
+                result.append(float(line))
+
+        return result

@@ -102,16 +102,19 @@ def hide_all_without_collection():
         obj.hide_viewport = True
 
 
-def config_render_settings():
+def config_render_settings(scene: bpy.types.Scene):
     """
     Configure render settings
     """
 
     # Set colour management View Transform to 'Standard' (Important for linear rgb scale)
-    bpy.context.scene.view_settings.view_transform = 'Standard'
+    scene.view_settings.view_transform = 'Standard'
 
     # Set filter size to 0 to remove anti-aliasing
-    bpy.context.scene.render.filter_size = 0
+    scene.render.filter_size = 0
+
+    # turn off dithering
+    scene.render.dither_intensity = 0
 
 
 def create_camera(name: str, collection: bpy.types.Collection, ortho_scale=2):
@@ -177,7 +180,7 @@ def apply_setup(target_collection):
     Apply all setup tasks
     """
     set_world_bg((0, 0, 0, 1))
-    config_render_settings()
+    config_render_settings(bpy.context.scene)
 
     # hide or exclude
     view_layer = bpy.context.view_layer
