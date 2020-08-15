@@ -195,8 +195,10 @@ class RunXS360(bpy.types.Operator):
         # get output profile resolution
         x, y = XS360Properties.get_resolution(context.scene)
 
+        from . import background
+
         # run background script
-        Popen(['blender', blend_file, '--background', '--python', 'background.py', '--', f'--scene={scene}',
+        Popen(['blender', blend_file, '--background', '--python', background.__file__, '--', f'--scene={scene}',
                f'--file={save_file}', f'-x={x}', f'-y={y}', f'--distance={distance}'], creationflags=flags)
 
         return {'FINISHED'}
