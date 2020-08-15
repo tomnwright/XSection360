@@ -32,7 +32,7 @@ def create_pixel_sphere(radius, resolution):
     verts = []
     for x in range(xR):
         for y in range(yR):
-            v = Equirectangular.pixel_project_sphere((x, y), resolution, radius)
+            v = Equirectangular.Pixel.project_sphere((x, y), resolution, radius)
 
             verts.append(v)
 

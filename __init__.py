@@ -7,6 +7,7 @@ from subprocess import Popen, CREATE_NEW_CONSOLE
 # set local path & allow local imports
 filepath = bpy.path.abspath("//")
 sys.path.append(filepath)
+sys.path.append(__file__)
 os.chdir(filepath)
 
 from setup import apply_setup
@@ -24,16 +25,18 @@ bl_info = {
 }
 
 
-class XS360_Panel_Settings:
+class XS360PanelSettings:
     bl_space_type = 'PROPERTIES'
     bl_region_type = "WINDOW"
     bl_category = "Tools"
     bl_context = "render"
-    bl_options = {"DEFAULT_OPEN"}
+    # bl_options = {"DEFAULT_CLOSED"}
 
 
-class XS360_Panel(XS360_Panel_Settings, bpy.types.Panel):
-    """Creates a Panel in the render context of the properties editor"""
+class XS360Panel(XS360PanelSettings, bpy.types.Panel):
+    """
+    Creates a XSection360 panel in the render context of the properties editor
+    """
     bl_label = "XSection360"
     bl_idname = "RENDER_PT_xs360"
 
@@ -50,6 +53,7 @@ class XS360_Panel(XS360_Panel_Settings, bpy.types.Panel):
         row.operator("wm.xs360_select_file", icon="FILE_FOLDER", text="")
         row.prop(xs360, "output_file", text="")
 
+        # profile resolution
         col = layout.column(align=True)
         col.label(text="Profile Resolution")
         row = col.row(align=True)
@@ -61,11 +65,14 @@ class XS360_Panel(XS360_Panel_Settings, bpy.types.Panel):
         row.scale_y = 2.0
         row.operator("wm.run_xs360", text="Run")
 
+        # open in new console bool
         layout.prop(xs360, "new_console")
 
 
-class XS360_Setup_Sub(XS360_Panel_Settings, bpy.types.Panel):
-    """Contains settings for Renderia Panel"""
+class XS360SetupSub(XS360PanelSettings, bpy.types.Panel):
+    """
+    Contains scene Setup options for XSection360 panel
+    """
     bl_label = "Setup"
     bl_parent_id = "RENDER_PT_xs360"
     bl_idname = "RENDER_PT_xs360_setup"
@@ -76,15 +83,19 @@ class XS360_Setup_Sub(XS360_Panel_Settings, bpy.types.Panel):
         scene = context.scene
         xs360 = scene.xs360
 
+        # target collection
         layout.prop(xs360, "setup_collection")
 
+        # setup button
         layout.operator("wm.setup_xs360")
 
         layout.label(text="Camera may need further setup.")
 
 
-class XS360_Camera_Sub(XS360_Panel_Settings, bpy.types.Panel):
-    """Contains settings for Renderia Panel"""
+class XS360CameraSub(XS360PanelSettings, bpy.types.Panel):
+    """
+    Contains camera options for XSection360 panel
+    """
     bl_label = "Camera"
     bl_parent_id = "RENDER_PT_xs360"
     bl_idname = "RENDER_PT_xs360_cam"
@@ -95,25 +106,34 @@ class XS360_Camera_Sub(XS360_Panel_Settings, bpy.types.Panel):
         scene = context.scene
         xs360 = scene.xs360
 
+        # target camera
         layout.prop(xs360, "camera_360")
 
+        # only show following properties if target camera assigned
         if xs360.camera_360 is not None:
+            # camera distance (sphere radius)
             layout.prop(xs360, "camera_distance")
 
             row = layout.row()
 
+            # Debug camera positioning
             row.label(text='Debug')
-            row.prop(xs360, "debug_camera", text='')
-            row.prop(xs360, "pixel_debug", text='Pixel')
+            row.prop(xs360, "debug_camera", text='')  # do debug?
+            row.prop(xs360, "pixel_debug", text='Pixel')  # pixel position to debug
 
     @staticmethod
     def do_camera_debug(self, context):
+        """
+        Apply camera pixel debug
+        Preview camera positioning for given final profile pixel
+        """
         if not self.debug_camera:
-            return
+            return  # cancel if no camera debugging not enabled
 
         pixel = self.pixel_debug
 
-        rX, rY = XS360_Properties.get_resolution(context.scene)
+        # get final output resolution
+        rX, rY = XS360Properties.get_resolution(context.scene)
         total = rX * rY
 
         # validate pixel range
@@ -122,18 +142,20 @@ class XS360_Camera_Sub(XS360_Panel_Settings, bpy.types.Panel):
         if small or big:
             return
 
-        # get pixel pixel_coord
+        # get pixel coordinate
         coord = xstools.OutImage.pixel_to_coord(pixel, rX)
 
-        long, lat = Equirectangular.pixel_coord_to_spherical(coord, (rX, rY))
+        # get projected longitude and latitude
+        long, lat = Equirectangular.Pixel.coord_to_spherical(coord, (rX, rY))
 
-        print(long, lat)
+        # apply to debug
         camera = self.camera_360
         distance = self.camera_distance
         xstools.transform_camera(camera, distance, long, lat)
 
 
-class XS360_File_Select(bpy.types.Operator, ExportHelper):
+class XS360FileSelect(bpy.types.Operator, ExportHelper):
+    """Select raw drag profile output for XSection360"""
     bl_idname = 'wm.xs360_select_file'
     bl_label = 'Accept'
 
@@ -151,32 +173,39 @@ class XS360_File_Select(bpy.types.Operator, ExportHelper):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        filedir = self.filepath
         context.scene.xs360.output_file = self.filepath
         return {'FINISHED'}
 
 
-class Run_XS360(bpy.types.Operator):
+class RunXS360(bpy.types.Operator):
+    """
+    Run XSection360 on current scene
+    """
     bl_idname = 'wm.run_xs360'
     bl_label = 'Run'
     bl_description = ''
 
     def execute(self, context):
-        blend_file = bpy.data.filepath
+        blend_file = bpy.data.filepath  # get blend file path
         xs360 = context.scene.xs360
 
+        # save blend file
         bpy.ops.wm.save_as_mainfile(filepath=blend_file)
 
+        # get usable variables
         scene = context.scene.name
         save_file = bpy.path.abspath(xs360.output_file)
         distance = xs360.camera_distance
 
+        # set creation flags - open in new console?
         flags = 0
         if xs360.new_console:
             flags = CREATE_NEW_CONSOLE
 
-        x,y = XS360_Properties.get_resolution(context.scene)
+        # get output profile resolution
+        x, y = XS360Properties.get_resolution(context.scene)
 
+        # run background script
         Popen(['blender', blend_file, '--background', '--python', 'background.py', '--', f'--scene={scene}',
                f'--file={save_file}', f'-x={x}', f'-y={y}', f'--distance={distance}'], creationflags=flags)
 
@@ -184,10 +213,20 @@ class Run_XS360(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
+        """
+        Only enable if scene camera has been set
+        """
         return context.scene.camera is not None
 
 
-class Setup_XS360(bpy.types.Operator):
+class SetupXS360(bpy.types.Operator):
+    """
+    Setup scene for XSection360 rendering:
+        -Copy mesh objects in target collection to new collection
+        -Create new camera
+        -Configure render settings
+        -etc...
+    """
     bl_idname = 'wm.setup_xs360'
     bl_label = 'Setup'
     bl_description = ''
@@ -205,18 +244,18 @@ class Setup_XS360(bpy.types.Operator):
         return context.scene.xs360.setup_collection is not None
 
 
-class XS360_Properties(bpy.types.PropertyGroup):
+class XS360Properties(bpy.types.PropertyGroup):
     setup_collection: bpy.props.PointerProperty(
         type=bpy.types.Collection,
         name="Target",
-        description="Collection from which mesh is extracted"
+        description="Collection from which mesh is extracted on setup"
     )
 
     # camera
     camera_360: bpy.props.PointerProperty(
         type=bpy.types.Object,
         name="Camera",
-        description="Collection from which mesh is extracted"
+        description="Camera to apply pixel debug to"
     )
     camera_distance: bpy.props.FloatProperty(
         name='Camera Distance',
@@ -224,40 +263,43 @@ class XS360_Properties(bpy.types.PropertyGroup):
         default=20,
         min=0
     )
-    # debug
+
+    # debug camera
     debug_camera: bpy.props.BoolProperty(
         name='Debug Camera',
+        description="Debug camera positioning?",
     )
-
     pixel_debug: bpy.props.IntProperty(
         name='Pixel Camera Debug',
+        description="Pixel position for which to debug camera positioning",
         min=0,
-        update=XS360_Camera_Sub.do_camera_debug
+        update=XS360CameraSub.do_camera_debug
     )
 
+    # output process
     output_file: bpy.props.StringProperty(
         default="//test.txt",
         description="File that output is written to."
     )
-
     new_console: bpy.props.BoolProperty(
         name="Run In New Console",
-        default=True
+        default=True,
+        description="Run background XSection360 process in new console (or in Blender console)"
     )
-
     output_x: bpy.props.IntProperty(
         name="X Resolution",
         description="X Resolution of Output Profile (not render)",
         default=30,
         min=0
     )
-
     output_y: bpy.props.IntProperty(
         name="Y Resolution",
         description="Y Resolution of Output Profile (not render)",
         default=30,
         min=0
     )
+
+    # Note: render size for each profile pixel should be set in scene render settings
 
     @staticmethod
     def get_resolution(scene):
@@ -267,13 +309,13 @@ class XS360_Properties(bpy.types.PropertyGroup):
 
 
 classes = (
-    XS360_Panel,
-    XS360_Setup_Sub,
-    XS360_Camera_Sub,
-    XS360_Properties,
-    XS360_File_Select,
-    Run_XS360,
-    Setup_XS360,
+    XS360Panel,
+    XS360SetupSub,
+    XS360CameraSub,
+    XS360Properties,
+    XS360FileSelect,
+    RunXS360,
+    SetupXS360,
 )
 
 
@@ -283,7 +325,7 @@ def register():
     for cls in classes:
         register_class(cls)
 
-    bpy.types.Scene.xs360 = bpy.props.PointerProperty(type=XS360_Properties)
+    bpy.types.Scene.xs360 = bpy.props.PointerProperty(type=XS360Properties)
     return
 
 

@@ -3,25 +3,30 @@ import math
 
 
 class Equirectangular:
-    # Class for equirectangular projection
-
-    # CONVERSION
-    # linear image coordinates 0 to 1
-    # spherical coordinates -180 to 180
-    # (centres 0 deg to 0.5 linear)
+    """
+    Class for equirectangular projection
+    """
 
     class Longitude:
         @staticmethod
         def linear_to_spherical(linear):
-            # convert linear x to spherical longitude
+            """
+            Convert linear to spherical coordinate (horizontal)
+            :param linear: Linear x coordinate
+            :return: Projected longitude
+            """
 
             # scale to between -1 and 1: *=2, -=1
-            # scale to between -180 and 180: *- 180
+            # scale to between -180 and 180: *= 180
             return (linear * 360) - 180
 
         @staticmethod
         def spherical_to_linear(spherical):
-            # convert spherical longitude to linear x
+            """
+            Convert spherical to linear coordinate (horizontal)
+            :param spherical: Projected longitude
+            :return: Linear x coordinate
+            """
 
             # inversion of linear_to_spherical
             return (spherical + 180) / 360
@@ -29,21 +34,34 @@ class Equirectangular:
     class Latitude:
         @staticmethod
         def linear_to_spherical(linear):
-            # convert linear y to spherical latitude
+            """
+            Convert linear to spherical coordinate (vertical)
+            :param linear: Linear y coordinate
+            :return: Projected latitude
+            """
 
             # scale to between -1 and 1: *=2, -=1
-            # scale to between -180 and 180: *- 180
+            # scale to between -90 and 90: *= 90
             return (linear * 180) - 90
 
         @staticmethod
         def spherical_to_linear(spherical):
-            # convert spherical latitude to linear y
+            """
+            Convert spherical to linear coordinate (vertical)
+            :param spherical: Projected latitude
+            :return: Linear y coordinate
+            """
 
             # inversion of linear_to_spherical
             return (spherical + 90) / 180
 
     @staticmethod
-    def spherical_coord(linear_coord):
+    def spherical_coord(linear_coord: tuple):
+        """
+        Converts linear (image) coordinate to projected spherical coordinate (tuple)
+        :param linear_coord: Linear coordinate (x, y)
+        :return: Projected spherical coordinate (long, lat)
+        """
         x, y = linear_coord
 
         long = Equirectangular.Longitude.linear_to_spherical(x)
@@ -52,7 +70,12 @@ class Equirectangular:
         return long, lat
 
     @staticmethod
-    def linear_coord(spherical_coord):
+    def linear_coord(spherical_coord: tuple):
+        """
+        Converts projected spherical coordinate to linear (image) coordinate (tuple)
+        :param spherical_coord: Projected spherical coordinate (long, lat)
+        :return: Linear coordinate (x, y)
+        """
         long, lat = spherical_coord
 
         x = Equirectangular.Longitude.spherical_to_linear(long)
@@ -61,8 +84,15 @@ class Equirectangular:
         return x, y
 
     @staticmethod
-    def project_sphere(coord, coord_linear=True, radius=1):
-        # calculates the corresponding point on a unit sphere
+    def project_sphere(coord: tuple, coord_linear=True, radius=1):
+        """
+        Calculates the corresponding point on a sphere of radius [radius]
+        :param coord: Coordinates to project
+        :param coord_linear: Are coordinates linear (x, y) or spherical (long, lat)?
+        :param radius: Sphere radius
+        :return: Projected (equirectangular) point - (x, y, z) vector tuple
+        """
+        #
 
         # ensure spherical pixel_coord
         if coord_linear:
@@ -83,48 +113,84 @@ class Equirectangular:
 
         return tuple(result * radius)
 
-    @staticmethod
-    def pixel_to_linear(pixel, resolution):
-        # converts a pixel location axis to linear coordinate axis
-        # takes into account pixel size, ensures no repeated seam
-        # first pixel numbered 0
+    class Pixel:
+        """
+        Methods to deal directly with pixel input
+        """
 
-        block_size = 1 / resolution
-        return block_size * (pixel + 0.5)
+        @staticmethod
+        def to_linear(pixel, resolution):
+            """
+            Converts a pixel location axis to linear coordinate axis
+            Takes into account pixel size, ensures no repeated seam
+            First pixel numbered 0
+            :param pixel: pixel axis value (x or y)
+            :param resolution: image resolution in same axis
+            :return: Linear coordinate value
+            """
 
-    @staticmethod
-    def pixel_coord_to_linear(coord, resolution: tuple):
-        x, y = coord
-        rX, rY = resolution
+            block_size = 1 / resolution
+            return block_size * (pixel + 0.5)
 
-        lX = Equirectangular.pixel_to_linear(x, rX)
-        lY = Equirectangular.pixel_to_linear(y, rY)
+        @staticmethod
+        def coord_to_linear(pixel_coord: tuple, resolution: tuple):
+            """
+            Convert pixel coordinate to linear coordinate
+            :param pixel_coord: Pixel coordinate
+            :param resolution: Image resolution
+            :return: Linear coordinate
+            """
+            x, y = pixel_coord
+            rX, rY = resolution
 
-        return lX, lY
+            lX = Equirectangular.Pixel.to_linear(x, rX)
+            lY = Equirectangular.Pixel.to_linear(y, rY)
 
-    @staticmethod
-    def pixel_coord_to_spherical(pixel_coord, resolution):
-        x, y = Equirectangular.pixel_coord_to_linear(pixel_coord, resolution)
+            return lX, lY
 
-        long = Equirectangular.Longitude.linear_to_spherical(x)
-        lat = Equirectangular.Latitude.linear_to_spherical(y)
+        @staticmethod
+        def coord_to_spherical(pixel_coord: tuple, resolution):
+            """
+            Convert pixel coordinate to projected spherical coordinate
+            :param pixel_coord: Pixel coordinate (x, y)
+            :param resolution: Image resolution
+            :return: Projected spherical coordinate (long, lat)
+            """
+            x, y = Equirectangular.Pixel.coord_to_linear(pixel_coord, resolution)
 
-        return long, lat
+            long = Equirectangular.Longitude.linear_to_spherical(x)
+            lat = Equirectangular.Latitude.linear_to_spherical(y)
 
-    @staticmethod
-    def pixel_project_sphere(pixel_coord, resolution: tuple, radius):
-        # linear coordinates
-        x, y = Equirectangular.pixel_coord_to_linear(pixel_coord, resolution)
+            return long, lat
 
-        return Equirectangular.project_sphere((x, y), radius=radius)
+        @staticmethod
+        def project_sphere(pixel_coord: tuple, resolution: tuple, radius):
+            """
+            Calculates the corresponding point on a sphere of radius [radius]
+            Handle pixel coordinates directly
+            :param pixel_coord: Pixel coordinate
+            :param resolution: Image resolution
+            :param radius: Projection sphere radius
+            :return: Projected (equirectangular) point - (x, y, z) vector tuple
+            """
+            # linear coordinates
+            x, y = Equirectangular.Pixel.coord_to_linear(pixel_coord, resolution)
+
+            return Equirectangular.project_sphere((x, y), radius=radius)
 
 
 class Vector:
 
     @staticmethod
     def rotate(vector, axis, deg):
-        # uses Rodrigues rotation formula to rotate vector deg degrees around axis
-        # axis must be normalized
+        """
+        Rotate vector through [deg] degrees around [axis] vector
+        Uses Rodrigues' vector rotation formula
+        :param vector: Target vector
+        :param axis: Normalized axis vector
+        :param deg: Counter-clockwise rotation in degrees
+        :return: Rotated vector -> np.array
+        """
 
         v = np.array(vector)
         k = np.array(axis)
@@ -134,11 +200,3 @@ class Vector:
         sin = math.sin(rad)
 
         return (v * cos) + (np.cross(k, v) * sin) + (k * np.dot(k, v) * (1 - cos))
-
-
-if __name__ == '__main__':
-    pass
-
-# idea: addon for setup, background script for running
-# run command line from within addon?
-# preview camera angles

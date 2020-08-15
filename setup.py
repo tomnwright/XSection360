@@ -1,3 +1,13 @@
+"""
+Setup scene for XSection360 processing:
+    - Set world background to black
+    - Copy mesh objects in target collection to new collection
+    - Set duplicate object material to solid white
+    - Create camera in new collection
+    - Disable/exclude all other objects/collections
+    - Configure render settings
+"""
+
 import bpy
 
 
@@ -8,7 +18,7 @@ def create_flat_mat(name, colour):
     :param colour: Emission input colour - (r,g,b,a)
     :return: Created material: bpy.types.Material
     """
-    mat = bpy.data.materials.new(name)
+    mat = bpy.data.materials.new(name)  # create material
     mat.use_nodes = True
 
     nodes = mat.node_tree.nodes
@@ -38,6 +48,7 @@ def set_world_bg(colour):
     :param colour: World background colour
     """
     bpy.context.scene.world.node_tree.nodes["Background"].inputs[0].default_value = colour
+    # ADD?: handle case when world nodes already configured without "Background"
 
 
 def exclude_all_collections(view_layer: bpy.types.ViewLayer):
@@ -116,6 +127,10 @@ def config_render_settings(scene: bpy.types.Scene):
     # turn off dithering
     scene.render.dither_intensity = 0
 
+    # configure Eevee settings
+    scene.eevee.taa_render_samples = 1
+    scene.render.engine = 'BLENDER_EEVEE'
+
 
 def create_camera(name: str, collection: bpy.types.Collection, ortho_scale=2):
     """
@@ -142,8 +157,8 @@ def create_camera(name: str, collection: bpy.types.Collection, ortho_scale=2):
 
 def configure_viewer_node():
     """
+    DEPRECATED - script now run in background, Viewer Node not available
     Configure compositing nodes to allow access to Render Result (through Viewer node).
-    Deprecated now script run in background
     From https://ammous88.wordpress.com/2015/01/16/blender-access-render-results-pixels-directly-from-python-2/
     """
 
@@ -177,7 +192,7 @@ def configure_viewer_node():
 
 def apply_setup(target_collection):
     """
-    Apply all setup tasks
+    Apply all above setup tasks.
     """
     set_world_bg((0, 0, 0, 1))
     config_render_settings(bpy.context.scene)

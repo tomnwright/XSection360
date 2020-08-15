@@ -125,7 +125,7 @@ def run_background(scene_name, save_file, resolution: tuple, cam_distance):
     import xstools
     from dataio import WriteRaw
     from equirectangular import Equirectangular
-    from progress import progress_bar
+    from progress import ProgressBar
 
     # retrieve scene data
     scene: bpy.types.Scene = bpy.data.scenes[scene_name]
@@ -144,13 +144,13 @@ def run_background(scene_name, save_file, resolution: tuple, cam_distance):
     max_pixel = writer.pixels
 
     # begin pixel render process (set up progress bar)
-    for pixel in progress_bar(range(max_pixel), desc="Rendering"):
+    for pixel in ProgressBar(range(max_pixel), desc="Rendering"):
 
         # get xy pixel coordinates
         pixel_coord = writer.pixel_to_coord(pixel)
 
         # get projected longitude & latitude
-        long, lat = Equirectangular.pixel_coord_to_spherical(pixel_coord, resolution)
+        long, lat = Equirectangular.Pixel.coord_to_spherical(pixel_coord, resolution)
         # apply to camera
         xstools.transform_camera(camera, cam_distance, long, lat)
 
