@@ -1,5 +1,5 @@
 import os
-from xstools import OutImage
+from .xstools import OutImage
 
 
 class RawProfile:

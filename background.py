@@ -118,14 +118,15 @@ def run_background(scene_name, save_file, resolution: tuple, cam_distance):
     """
 
     # set local path & allow local imports
-    filepath = bpy.path.abspath("//")
-    sys.path.append(filepath)
-    os.chdir(filepath)
+    # filepath = bpy.path.abspath("//")
+    # sys.path.append(filepath)
+    # os.chdir(filepath)
 
-    import xstools
-    from dataio import WriteRaw
-    from equirectangular import Equirectangular
-    from progress import ProgressBar
+    from . import xstools
+    from .dataio import WriteRaw
+    from .equirectangular import Equirectangular
+    from .progress import ProgressBar
+
 
     # retrieve scene data
     scene: bpy.types.Scene = bpy.data.scenes[scene_name]

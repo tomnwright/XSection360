@@ -1,4 +1,4 @@
-from equirectangular import Equirectangular
+from .equirectangular import Equirectangular
 import bpy
 from math import radians
 

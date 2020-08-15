@@ -1,6 +1,5 @@
-from math import floor
+from math import floor, fmod
 from time import time, sleep
-from math import fmod
 
 
 class ProgressBar:
