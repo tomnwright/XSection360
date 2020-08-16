@@ -117,15 +117,15 @@ def run_background(scene_name, save_file, resolution: tuple, cam_distance):
     :param cam_distance: Distance of camera from center (sphere radius)
     """
 
-    # set local path & allow local imports
-    # filepath = bpy.path.abspath("//")
-    # sys.path.append(filepath)
-    # os.chdir(filepath)
+    # run_background is called from the command line
+    # this means it is top level: __name__ == '__main__'
+    # therefore, it is not registered as being part of the XSection360 package
+    # therefore, modules must be imported using full module path
 
-    from . import xstools
-    from .dataio import WriteRaw
-    from .equirectangular import Equirectangular
-    from .progress import ProgressBar
+    from XSection360 import xstools
+    from XSection360.dataio import WriteRaw
+    from XSection360.equirectangular import Equirectangular
+    from XSection360.progress import ProgressBar
 
 
     # retrieve scene data
@@ -135,6 +135,9 @@ def run_background(scene_name, save_file, resolution: tuple, cam_distance):
 
     writer = WriteRaw(save_file, resolution)
     suppressor = Suppressor()
+
+    # if directory not changed, access may be denied (to blender addons folder)
+    os.chdir(bpy.path.abspath('//'))
 
     # set temp file to render to
     temp_file = f"//temp.{time()}.png"
