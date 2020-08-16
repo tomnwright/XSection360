@@ -8,12 +8,12 @@ bl_info = {
     "category": "Render"
 }
 
-from . import xs360_addon
+from . import blender_gui
 
 
 def register():
-    xs360_addon.register()
+    blender_gui.register()
 
 
 def unregister():
-    xs360_addon.unregister()
+    blender_gui.unregister()
