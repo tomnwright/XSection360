@@ -1,4 +1,4 @@
-files = ['__init__.py', 'background.py', 'dataio.py', 'equirectangular.py', 'progress.py', 'setup.py', 'blender_gui.py', 'xstools.py']
+files = ['__init__.py', 'background.py', 'processing.py', 'equirectangular.py', 'progress.py', 'setup.py', 'blender_gui.py', 'xstools.py']
 
 from zipfile import ZipFile
 

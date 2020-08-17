@@ -15,52 +15,6 @@ import bpy
 from time import time, sleep
 
 
-class Processing:
-    @staticmethod
-    def get_rgba_lightness(rgba: tuple):
-        """
-        Calculate pixel lightness from RGB(A)
-        :param rgba: Pixel data tuple: either RGB or RGBA
-        :return: Lightness value (average of r,g,b)
-        """
-        return sum(rgba[:3]) / 3
-
-    @staticmethod
-    def get_pixels(image: bpy.types.Image):
-        """
-        Convert bpy.types.Image.pixels to list of pixel tuples
-        :param image: Target image
-        :return: Linear list of pixel tuples (RGBA)
-        """
-        return list(zip(*[iter(image.pixels)] * 4))
-
-    @staticmethod
-    def sum_lightness(pixels):
-        """
-        Calculate the sum lightness of given pixels
-        :param pixels: List of RGB(A) pixel tuples
-        :return: Float value: total (sum) lightness
-        """
-        result = 0
-
-        for pixel in pixels:
-            result += Processing.get_rgba_lightness(pixel)
-
-        return result
-
-    @staticmethod
-    def process_image(file_path):
-        """
-        Apply above processing to file at given filepath
-        :param file_path: Target image filepath
-        :return: Sum lightness of target image pixels
-        """
-        img = bpy.data.images.load(file_path)  # load target image into blender
-        pixels = Processing.get_pixels(img)  # get list of pixel tuples (rgba)
-
-        return Processing.sum_lightness(pixels)  # return sum of each pixel lightness
-
-
 class Suppressor:
     """
     Suppress console output by redirecting it to logfile
@@ -112,8 +66,8 @@ def run_background(scene_name, save_file, resolution: tuple, cam_distance):
     """
     Run XS360 process.
     :param scene_name: Name of target scene
-    :param save_file: Output file (txt) - raw drag profile
-    :param resolution: Final drag profile resolution
+    :param save_file: Output image file (png)
+    :param resolution: Output image resolution
     :param cam_distance: Distance of camera from center (sphere radius)
     """
 
@@ -123,35 +77,40 @@ def run_background(scene_name, save_file, resolution: tuple, cam_distance):
     # therefore, modules must be imported using full module path
 
     from XSection360 import xstools
-    from XSection360.dataio import WriteRaw
     from XSection360.equirectangular import Equirectangular
     from XSection360.progress import ProgressBar
-
+    from XSection360.processing import ProcessRaw, ProcessRender
 
     # retrieve scene data
     scene: bpy.types.Scene = bpy.data.scenes[scene_name]
     camera = scene.camera
-    render_res = xstools.OutImage.get_resolution(scene)
+    render_res = xstools.get_render_resolution(scene)
 
-    writer = WriteRaw(save_file, resolution)
     suppressor = Suppressor()
 
     # if directory not changed, access may be denied (to blender addons folder)
     os.chdir(bpy.path.abspath('//'))
 
+    # modify output name to ensure no overwriting
+    save_file = xstools.OutImage.modify_filename(save_file)
+
     # set temp file to render to
-    temp_file = f"//temp.{time()}.png"
+    temp_file = save_file  # use final save file as temp file during processing
     scene.render.filepath = temp_file
 
     # print start message
-    print(start_message(scene_name, writer.filename, resolution, render_res))
-    max_pixel = writer.pixels
+    print(start_message(scene_name, save_file, resolution, render_res))
+    max_pixel = xstools.product(resolution)
 
+    # processed pixels
+    result_raw = []
+
+    # RENDER
     # begin pixel render process (set up progress bar)
     for pixel in ProgressBar(range(max_pixel), desc="Rendering"):
-
         # get xy pixel coordinates
-        pixel_coord = writer.pixel_to_coord(pixel)
+        res_x, res_y = resolution
+        pixel_coord = xstools.OutImage.pixel_to_coord(pixel, res_x)
 
         # get projected longitude & latitude
         long, lat = Equirectangular.Pixel.coord_to_spherical(pixel_coord, resolution)
@@ -163,11 +122,19 @@ def run_background(scene_name, save_file, resolution: tuple, cam_distance):
         bpy.ops.render.render(write_still=True)
         suppressor.exit()
 
-        # process render result, write to file
-        total_lightness = Processing.process_image(temp_file)
-        writer.write(total_lightness)
+        # process render result,  to file
+        total_lightness = ProcessRender.process(temp_file)
+        result_raw.append(total_lightness)
 
-    # end
+    print("\n Finished Rendering. Starting Processing...\n")
+
+    # PROCESS
+    for i in ProgressBar(ProcessRaw(result_raw, save_file, resolution), desc="Processing"):
+        # Processing executed within ProcessRaw() generator:
+        #     - Process raw data into profile pixels
+        #     - Write pixels to image
+        #     - Save image to file
+        pass  # wait
 
 
 def main():

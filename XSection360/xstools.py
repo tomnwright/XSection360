@@ -1,6 +1,7 @@
 from .equirectangular import Equirectangular
 import bpy
 from math import radians
+from os.path import isfile
 
 
 def transform_camera(camera: bpy.types.Object, distance, long, lat):
@@ -47,6 +48,33 @@ def create_pixel_sphere(radius, resolution):
     obj.select_set(True)
 
 
+def get_render_resolution(scene=None):
+    if scene is None:
+        scene = bpy.context.scene
+
+    return scene.render.resolution_x, scene.render.resolution_y
+
+
+def product(factors):
+    result = 1
+    for f in factors:
+        result *= f
+    return result
+
+
+def iterate_flat(iterable, group_size):
+    """
+    Generator for iterating over [iterable] in groups of size [group_size]
+    :param iterable: Target iterable
+    :param group_size: Sub-group iteration size
+    """
+    if len(iterable) % group_size != 0:
+        raise Exception("length of iterable must be divisible by four")
+
+    for i in range(0, len(iterable), group_size):
+        yield iterable[i: i + group_size]
+
+
 class OutImage:
     @staticmethod
     def pixel_to_coord(pixel, res_width: int):
@@ -75,8 +103,27 @@ class OutImage:
         return y * res_width + x
 
     @staticmethod
-    def get_resolution(scene=None):
-        if scene is None:
-            scene = bpy.context.scene
+    def modify_filename(file_name):
+        """
+        Rename target file to ensure existing files are not overwritten
+        """
+        if not isfile(file_name):
+            return file_name
 
-        return scene.render.resolution_x, scene.render.resolution_y
+        # does already exist
+        count = 1
+        while isfile(OutImage.insert_before_extension(file_name, count)):
+            count += 1
+
+        return OutImage.insert_before_extension(file_name, count)
+
+    @staticmethod
+    def insert_before_extension(filename: str, insert):
+        """
+        Insert string into filename before extension
+        :param filename: target filename
+        :param insert: string to be inserted
+        """
+        pos = filename.rfind('.')  # find extension dot position from right
+        name, extension = filename[:pos], filename[pos:]
+        return name + str(insert) + extension

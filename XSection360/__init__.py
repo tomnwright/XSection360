@@ -14,14 +14,14 @@ To Use:
 4) Use the camera debugger to make sure all objects are in frame from every angle.
         (Configure object position and camera ortho size)
         (The camera rotates about the World Origin)
-5) Set an output txt file; click Run
+5) Set an output png file; click Run
         ("Run in New Console" is recommended)
         Addon renders an image from each camera position,
         calculates the total lightness of the image pixels,
-        and outputs it to the output txt file.
-6) Wait for XSection360 Render to complete
-7) Process output txt using processing.py (see documentation)
-        Processes the txt file to generate a BW image
+        and outputs it to output image profile
+6) Wait for XSection360 Render & Process to complete
+        DO NOT OPEN OUTPUT FILE DURING RENDER PROCESS
+        as this will cause an access error, crashing the script
 """
 
 

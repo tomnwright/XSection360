@@ -1,5 +1,5 @@
-import sys
-import os
+# import sys
+# import os
 import bpy
 from bpy_extras.io_utils import ExportHelper
 from subprocess import Popen, CREATE_NEW_CONSOLE
@@ -149,10 +149,10 @@ class XS360FileSelect(bpy.types.Operator, ExportHelper):
     bl_idname = 'wm.xs360_select_file'
     bl_label = 'Accept'
 
-    filename_ext = ".txt"
+    filename_ext = ".png"
 
     filter_glob: bpy.props.StringProperty(
-        default="*.txt",
+        default="*.png",
         options={'HIDDEN'},
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
@@ -273,7 +273,7 @@ class XS360Properties(bpy.types.PropertyGroup):
 
     # output process
     output_file: bpy.props.StringProperty(
-        default="//test.txt",
+        default="//xs360_output.png",
         description="File that output is written to."
     )
     new_console: bpy.props.BoolProperty(

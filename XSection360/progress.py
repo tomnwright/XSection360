@@ -29,7 +29,7 @@ class ProgressBar:
             # config time
             current_time = time()
             wait_time = current_time - last_time
-            rate = 1 / wait_time
+            rate = self.protected_div(1, wait_time)  # 1 / wait_time
 
             # generate bar and prefix
             progress = self.progress(e)
@@ -139,6 +139,14 @@ class ProgressBar:
         seconds = round(remaining, 2)
 
         return days_text + hours_text + minutes_text + str(seconds) + 's'
+
+    @staticmethod
+    def protected_div(dividend, divisor):
+        try:
+            result = dividend / divisor
+        except ZeroDivisionError:
+            result = 0
+        return result
 
 
 if __name__ == '__main__':
