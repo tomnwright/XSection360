@@ -28,13 +28,13 @@ I advise first creating a dedicated Blend file or duplicating the working file.
     * Eevee settings configured
     * A new camera is generated in the new collection
 
-![Setup the scene for XSection360 process](Readme/Screenshot%202.png)
+![Setup the scene for XSection360 process](images/Screenshot1.png)
 
 3. Use the camera debugger to make sure all objects are in frame from every angle.
     * Configure object position and camera ortho size
     * Centre objects; camera rotates about the World Origin
     
-![Configure XSection360 camera](Readme/Screenshot%203.png)
+![Configure XSection360 camera](images/Screenshot2.png)
 
 5) Set an output png file; click Run to render.
     * "Run in New Console" is recommended, as a new console window can be cancelled.
@@ -42,5 +42,12 @@ I advise first creating a dedicated Blend file or duplicating the working file.
 6) Wait for XSection360 Render & Process to complete
     * IMPORTANT: do not open the render file during rendering. This will cause an access error, terminating the script.
 
+### Example Output
+This profile was output from the plane model shown in the above screenshots.
 
-![Test image]
+![Example output](images/Output.png)
+
+In this image, black shows directions in which the model has lower cross-sectional surfaces area, and white higher.
+
+The central horizontal black stripe reflects the fact that the wings contribute a much larger surface area when viewed from above or below.
+The black is also more concentrated in the centre and edge of the image horizontally, as the plane is more streamlined in the forwards (and backwards) direction.
