@@ -51,3 +51,5 @@ In this image, black shows directions in which the model has lower cross-section
 
 The central horizontal black stripe reflects the fact that the wings contribute a much larger surface area when viewed from above or below.
 The black is also more concentrated in the centre and edge of the image horizontally, as the plane is more streamlined in the forwards (and backwards) direction.
+
+The image is quite grainy. This is because the render resolution (not output resolution) was too small. Increasing render resolution results in a much less grainy image:
