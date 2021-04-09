@@ -56,3 +56,5 @@ The image is quite grainy. This is because the render resolution (not output res
 
 
 ![Increase render resolution for less grainy output](images/Output2.png)
+
+A much better way would be to calculate the above mathematically.
